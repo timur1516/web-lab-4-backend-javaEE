@@ -32,7 +32,7 @@ public class UserSessionDAOImpl implements UserSessionDAO {
         Session session = sessionFactory.openSession();
         Transaction transaction = session.beginTransaction();
         try (session) {
-            session.persist(userSessionEntity);
+            session.merge(userSessionEntity);
             transaction.commit();
         } catch (Exception e) {
             transaction.rollback();
@@ -41,10 +41,12 @@ public class UserSessionDAOImpl implements UserSessionDAO {
 
     @Override
     public void deleteSessionByToken(String token) {
+        UserSessionEntity userSessionEntity = getSessionByToken(token).orElse(null);
+        if(userSessionEntity == null) return;
         Session session = sessionFactory.openSession();
         Transaction transaction = session.beginTransaction();
         try (session) {
-            getSessionByToken(token).ifPresent(session::remove);
+            session.remove(userSessionEntity);
             transaction.commit();
         } catch (Exception e) {
             transaction.rollback();

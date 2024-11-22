@@ -1,8 +1,6 @@
 package ru.timur.web4_backend.util;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
 import lombok.Getter;
 
 import java.security.Principal;
@@ -12,6 +10,7 @@ import java.security.Principal;
 public class UserPrincipals implements Principal {
     private final String username;
     private final Long userId;
+    private final String token;
 
     @Override
     public String getName() {

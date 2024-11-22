@@ -1,5 +1,6 @@
 package ru.timur.web4_backend.service;
 
+import com.auth0.jwt.exceptions.TokenExpiredException;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
 import ru.timur.web4_backend.dao.UserDAO;
@@ -7,19 +8,20 @@ import ru.timur.web4_backend.dao.UserSessionDAO;
 import ru.timur.web4_backend.entity.UserEntity;
 import ru.timur.web4_backend.entity.UserSessionEntity;
 import ru.timur.web4_backend.exception.SessionNotFoundException;
+import ru.timur.web4_backend.exception.SessionTimeoutException;
 import ru.timur.web4_backend.util.JWTUtil;
 
 import java.util.Date;
 
 @Stateless
-public class UserSessionServiceImpl implements UserSessionService{
+public class UserSessionServiceImpl implements UserSessionService {
     @EJB
     private UserSessionDAO userSessionDAO;
     @EJB
     private JWTUtil jwtUtil;
 
     @Override
-    public  String startSession(UserEntity user) {
+    public String startSession(UserEntity user) {
         String token = jwtUtil.generateToken(user.getUsername(), user.getId());
         UserSessionEntity userSessionEntity = UserSessionEntity
                 .builder()
@@ -53,7 +55,7 @@ public class UserSessionServiceImpl implements UserSessionService{
                 UserSessionEntity userSessionEntity = userSessionDAO
                         .getSessionByToken(token)
                         .orElse(null);
-                if(userSessionEntity == null) return null;
+                if (userSessionEntity == null) return null;
                 String newToken = jwtUtil.generateToken(jwtUtil.getUsernameFromToken(token), jwtUtil.getUserIdFromToken(token));
                 userSessionEntity.setToken(newToken);
                 userSessionDAO.updateSession(userSessionEntity);
@@ -61,5 +63,13 @@ public class UserSessionServiceImpl implements UserSessionService{
             }
         }
         return null;
+    }
+
+    @Override
+    public void validateToken(String token) throws SessionNotFoundException, SessionTimeoutException {
+        if(jwtUtil.isTokenExpired(token))
+            throw new SessionTimeoutException("Session with token " + token + " is expired");
+        if(userSessionDAO.getSessionByToken(token).isEmpty())
+            throw new SessionNotFoundException("Session with token " + token + " does not exists");
     }
 }

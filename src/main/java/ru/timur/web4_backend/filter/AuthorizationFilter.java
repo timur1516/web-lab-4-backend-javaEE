@@ -9,6 +9,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.ext.Provider;
 import ru.timur.web4_backend.exception.SessionNotFoundException;
+import ru.timur.web4_backend.exception.SessionTimeoutException;
 import ru.timur.web4_backend.service.UserSessionService;
 import ru.timur.web4_backend.util.JWTUtil;
 import ru.timur.web4_backend.util.UserPrincipals;
@@ -30,7 +31,8 @@ public class AuthorizationFilter implements ContainerRequestFilter {
 
     private static final Set<String> SKIP_PATHS = new HashSet<>(Arrays.asList(
             "/auth/signup",
-            "/auth/login"
+            "/auth/login",
+            "/auth/checktoken"
     ));
 
     @Override
@@ -53,7 +55,15 @@ public class AuthorizationFilter implements ContainerRequestFilter {
 
         String token = authHeader.substring("Bearer".length()).trim();
 
-        if (jwtUtil.isTokenExpired(token)) {
+        try {
+            userSessionService.validateToken(token);
+            userSessionService.updateLastActivity(token);
+        } catch (SessionNotFoundException e) {
+            requestContext.abortWith(Response
+                    .status(Response.Status.UNAUTHORIZED)
+                    .entity("Invalid token")
+                    .build());
+        } catch (SessionTimeoutException e){
             requestContext.abortWith(Response
                     .status(Response.Status.UNAUTHORIZED)
                     .entity("Login timeout expired")
@@ -62,30 +72,11 @@ public class AuthorizationFilter implements ContainerRequestFilter {
 
         String username = jwtUtil.getUsernameFromToken(token);
         Long userId = jwtUtil.getUserIdFromToken(token);
-
-        if (username == null || userId == null) {
-            requestContext.abortWith(Response
-                    .status(Response.Status.UNAUTHORIZED)
-                    .entity("Invalid token")
-                    .build());
-        }
-
-        //TODO: check that username and userId are valid
-
-        try {
-            userSessionService.updateLastActivity(token);
-        } catch (SessionNotFoundException e) {
-            requestContext.abortWith(Response
-                    .status(Response.Status.UNAUTHORIZED)
-                    .entity("Invalid token")
-                    .build());
-        }
-
         requestContext.setSecurityContext(new SecurityContext() {
 
             @Override
             public Principal getUserPrincipal() {
-                return new UserPrincipals(username, userId);
+                return new UserPrincipals(username, userId, token);
             }
 
             @Override
