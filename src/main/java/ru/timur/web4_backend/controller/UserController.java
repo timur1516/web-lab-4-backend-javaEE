@@ -6,6 +6,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import lombok.extern.slf4j.Slf4j;
 import ru.timur.web4_backend.dto.PointRequestDTO;
 import ru.timur.web4_backend.dto.PointResponseDTO;
 import ru.timur.web4_backend.exception.UserNotFoundException;
@@ -14,6 +15,7 @@ import ru.timur.web4_backend.util.UserPrincipals;
 
 import java.util.List;
 
+@Slf4j
 @Path("/main")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
@@ -25,7 +27,7 @@ public class UserController {
     private SecurityContext securityContext;
 
     @GET
-    @Path("/getpoints")
+    @Path("/get-points")
     public Response getPoints() {
         UserPrincipals userPrincipals = (UserPrincipals) securityContext.getUserPrincipal();
         List<PointResponseDTO> points = userService.getAllPoints(userPrincipals.getUserId());
@@ -33,7 +35,7 @@ public class UserController {
     }
 
     @POST
-    @Path("/checkpoint")
+    @Path("/check-point")
     public Response checkpoint(PointRequestDTO point) {
         UserPrincipals userPrincipals = (UserPrincipals) securityContext.getUserPrincipal();
         try {

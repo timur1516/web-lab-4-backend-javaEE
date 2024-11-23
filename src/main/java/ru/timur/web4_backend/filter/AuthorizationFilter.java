@@ -8,6 +8,7 @@ import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.ext.Provider;
+import lombok.extern.slf4j.Slf4j;
 import ru.timur.web4_backend.exception.SessionNotFoundException;
 import ru.timur.web4_backend.exception.SessionTimeoutException;
 import ru.timur.web4_backend.service.UserSessionService;
@@ -20,6 +21,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+@Slf4j
 @Provider
 @Priority(Priorities.AUTHENTICATION)
 public class AuthorizationFilter implements ContainerRequestFilter {
@@ -32,13 +34,13 @@ public class AuthorizationFilter implements ContainerRequestFilter {
     private static final Set<String> SKIP_PATHS = new HashSet<>(Arrays.asList(
             "/auth/signup",
             "/auth/login",
-            "/auth/checktoken"
+            "/auth/refresh-token"
     ));
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
         String path = requestContext.getUriInfo().getPath();
-        System.out.println(path);
+        log.info("Received request with path: {}", path);
         if (SKIP_PATHS.contains(path)) {
             return;
         }
@@ -46,6 +48,7 @@ public class AuthorizationFilter implements ContainerRequestFilter {
         String authHeader = requestContext.getHeaderString("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.info("Authorization header not found");
             requestContext.abortWith(Response
                     .status(Response.Status.UNAUTHORIZED)
                     .entity("Authorization header must be provided")
@@ -54,29 +57,32 @@ public class AuthorizationFilter implements ContainerRequestFilter {
         }
 
         String token = authHeader.substring("Bearer".length()).trim();
+        log.info("Received token: {}", token);
 
         try {
             userSessionService.validateToken(token);
-            userSessionService.updateLastActivity(token);
         } catch (SessionNotFoundException e) {
+            log.info("Session not found for token: {}", token);
             requestContext.abortWith(Response
                     .status(Response.Status.UNAUTHORIZED)
                     .entity("Invalid token")
                     .build());
-        } catch (SessionTimeoutException e){
+            return;
+        } catch (SessionTimeoutException e) {
+            log.info("Session timeout for token: {}", token);
             requestContext.abortWith(Response
                     .status(Response.Status.UNAUTHORIZED)
                     .entity("Login timeout expired")
                     .build());
+            return;
         }
 
-        String username = jwtUtil.getUsernameFromToken(token);
-        Long userId = jwtUtil.getUserIdFromToken(token);
+        //TODO: remove jwtUtil from this module
+        Long userId = jwtUtil.getUserId(token);
         requestContext.setSecurityContext(new SecurityContext() {
-
             @Override
             public Principal getUserPrincipal() {
-                return new UserPrincipals(username, userId, token);
+                return new UserPrincipals(userId, token);
             }
 
             @Override

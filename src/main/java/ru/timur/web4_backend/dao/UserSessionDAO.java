@@ -7,6 +7,8 @@ import java.util.Optional;
 public interface UserSessionDAO {
     void saveSession(UserSessionEntity userSessionEntity);
     void updateSession(UserSessionEntity userSessionEntity);
-    void deleteSessionByToken(String token);
-    Optional<UserSessionEntity> getSessionByToken(String token);
+    void deleteSessionByAccessToken(String token);
+    void deleteSessionByRefreshToken(String token);
+    Optional<UserSessionEntity> getSessionByAccessToken(String token);
+    Optional<UserSessionEntity> getSessionByRefreshToken(String token);
 }

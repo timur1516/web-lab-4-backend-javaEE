@@ -5,7 +5,6 @@ import jakarta.inject.Inject;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.hibernate.query.Query;
 import ru.timur.web4_backend.entity.UserSessionEntity;
 
 import java.util.Optional;
@@ -40,8 +39,8 @@ public class UserSessionDAOImpl implements UserSessionDAO {
     }
 
     @Override
-    public void deleteSessionByToken(String token) {
-        UserSessionEntity userSessionEntity = getSessionByToken(token).orElse(null);
+    public void deleteSessionByAccessToken(String token) {
+        UserSessionEntity userSessionEntity = getSessionByAccessToken(token).orElse(null);
         if(userSessionEntity == null) return;
         Session session = sessionFactory.openSession();
         Transaction transaction = session.beginTransaction();
@@ -54,13 +53,44 @@ public class UserSessionDAOImpl implements UserSessionDAO {
     }
 
     @Override
-    public Optional<UserSessionEntity> getSessionByToken(String token) {
+    public void deleteSessionByRefreshToken(String token) {
+        UserSessionEntity userSessionEntity = getSessionByRefreshToken(token).orElse(null);
+        if(userSessionEntity == null) return;
+        Session session = sessionFactory.openSession();
+        Transaction transaction = session.beginTransaction();
+        try (session) {
+            session.remove(userSessionEntity);
+            transaction.commit();
+        } catch (Exception e) {
+            transaction.rollback();
+        }
+    }
+
+    @Override
+    public Optional<UserSessionEntity> getSessionByAccessToken(String token) {
         UserSessionEntity userSessionEntity = null;
         Session session = sessionFactory.openSession();
         Transaction transaction = session.beginTransaction();
         try (session) {
             userSessionEntity = session.createQuery(
-                    "FROM UserSessionEntity WHERE token = :token", UserSessionEntity.class)
+                    "FROM UserSessionEntity WHERE accessToken = :token", UserSessionEntity.class)
+                    .setParameter("token", token)
+                    .uniqueResult();
+            transaction.commit();
+        } catch (Exception e) {
+            transaction.rollback();
+        }
+        return Optional.ofNullable(userSessionEntity);
+    }
+
+    @Override
+    public Optional<UserSessionEntity> getSessionByRefreshToken(String token) {
+        UserSessionEntity userSessionEntity = null;
+        Session session = sessionFactory.openSession();
+        Transaction transaction = session.beginTransaction();
+        try (session) {
+            userSessionEntity = session.createQuery(
+                            "FROM UserSessionEntity WHERE refreshToken = :token", UserSessionEntity.class)
                     .setParameter("token", token)
                     .uniqueResult();
             transaction.commit();

@@ -19,9 +19,9 @@ public class UserSessionEntity {
     @Column(name = "id")
     private long id;
 
-    @Column(name = "token", nullable = false, unique = true)
-    private String token;
+    @Column(name = "access_token", nullable = false, unique = true)
+    private String accessToken;
 
-    @Column(name = "last_activity", nullable = false)
-    private Date lastActivity;
+    @Column(name = "refresh_token", nullable = false, unique = true)
+    private String refreshToken;
 }

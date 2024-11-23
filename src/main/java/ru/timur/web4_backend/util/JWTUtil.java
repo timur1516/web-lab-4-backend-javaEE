@@ -1,11 +1,9 @@
 package ru.timur.web4_backend.util;
 
-import java.util.Date;
+import java.time.Instant;
 
 public interface JWTUtil {
-    String generateToken(String username, Long userId);
-    String getUsernameFromToken(String token);
-    Long getUserIdFromToken(String token);
-    boolean isTokenExpired(String token);
-    Date getExpiresAtFromToken(String token);
+    String generateToken(Long userId, Instant expiresAt);
+    Long getUserId(String token);
+    boolean isExpired(String token);
 }

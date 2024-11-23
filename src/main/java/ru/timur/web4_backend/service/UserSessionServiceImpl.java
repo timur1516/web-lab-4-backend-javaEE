@@ -1,17 +1,18 @@
 package ru.timur.web4_backend.service;
 
-import com.auth0.jwt.exceptions.TokenExpiredException;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
-import ru.timur.web4_backend.dao.UserDAO;
 import ru.timur.web4_backend.dao.UserSessionDAO;
+import ru.timur.web4_backend.dto.CredentialsDTO;
+import ru.timur.web4_backend.dto.TokenDTO;
 import ru.timur.web4_backend.entity.UserEntity;
 import ru.timur.web4_backend.entity.UserSessionEntity;
 import ru.timur.web4_backend.exception.SessionNotFoundException;
 import ru.timur.web4_backend.exception.SessionTimeoutException;
 import ru.timur.web4_backend.util.JWTUtil;
 
-import java.util.Date;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Stateless
 public class UserSessionServiceImpl implements UserSessionService {
@@ -21,55 +22,46 @@ public class UserSessionServiceImpl implements UserSessionService {
     private JWTUtil jwtUtil;
 
     @Override
-    public String startSession(UserEntity user) {
-        String token = jwtUtil.generateToken(user.getUsername(), user.getId());
+    public CredentialsDTO startSession(UserEntity user) {
+        String accessToken = jwtUtil.generateToken(user.getId(), Instant.now().plus(30, ChronoUnit.SECONDS));
+        String refreshToken = jwtUtil.generateToken(user.getId(), Instant.now().plus(1, ChronoUnit.MINUTES));
         UserSessionEntity userSessionEntity = UserSessionEntity
                 .builder()
-                .token(token)
-                .lastActivity(new Date())
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .build();
 
         userSessionDAO.saveSession(userSessionEntity);
 
-        return token;
+        return new CredentialsDTO(accessToken, refreshToken);
     }
 
     @Override
     public void endSession(String token) {
-        userSessionDAO.deleteSessionByToken(token);
-    }
-
-    @Override
-    public void updateLastActivity(String token) throws SessionNotFoundException {
-        UserSessionEntity userSessionEntity = userSessionDAO
-                .getSessionByToken(token)
-                .orElseThrow(() -> new SessionNotFoundException("Session with token " + token + " does not exists"));
-        userSessionEntity.setLastActivity(new Date());
-        userSessionDAO.updateSession(userSessionEntity);
-    }
-
-    @Override
-    public String getRefreshedTokenIfExpired(String token) {
-        if (!jwtUtil.isTokenExpired(token)) {
-            if (jwtUtil.getExpiresAtFromToken(token).getTime() - System.currentTimeMillis() < 5 * 60 * 1000) {
-                UserSessionEntity userSessionEntity = userSessionDAO
-                        .getSessionByToken(token)
-                        .orElse(null);
-                if (userSessionEntity == null) return null;
-                String newToken = jwtUtil.generateToken(jwtUtil.getUsernameFromToken(token), jwtUtil.getUserIdFromToken(token));
-                userSessionEntity.setToken(newToken);
-                userSessionDAO.updateSession(userSessionEntity);
-                return newToken;
-            }
-        }
-        return null;
+        userSessionDAO.deleteSessionByAccessToken(token);
     }
 
     @Override
     public void validateToken(String token) throws SessionNotFoundException, SessionTimeoutException {
-        if(jwtUtil.isTokenExpired(token))
+        if (jwtUtil.isExpired(token))
             throw new SessionTimeoutException("Session with token " + token + " is expired");
-        if(userSessionDAO.getSessionByToken(token).isEmpty())
+        if (userSessionDAO.getSessionByAccessToken(token).isEmpty())
             throw new SessionNotFoundException("Session with token " + token + " does not exists");
+    }
+
+    @Override
+    public TokenDTO refreshToken(String token) throws SessionNotFoundException, SessionTimeoutException {
+        if (jwtUtil.isExpired(token)) {
+            userSessionDAO.deleteSessionByRefreshToken(token);
+            throw new SessionTimeoutException("Session with token " + token + " is expired");
+        }
+        UserSessionEntity userSession = userSessionDAO
+                .getSessionByRefreshToken(token)
+                .orElseThrow(() -> new SessionNotFoundException("Session with token " + token + " does not exists"));
+
+        String newAccessToken = jwtUtil.generateToken(jwtUtil.getUserId(token), Instant.now().plus(30, ChronoUnit.SECONDS));
+        userSession.setAccessToken(newAccessToken);
+        userSessionDAO.updateSession(userSession);
+        return new TokenDTO(newAccessToken);
     }
 }

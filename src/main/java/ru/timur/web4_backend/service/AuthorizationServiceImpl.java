@@ -2,7 +2,10 @@ package ru.timur.web4_backend.service;
 
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
+import jakarta.persistence.Table;
 import ru.timur.web4_backend.dao.UserDAO;
+import ru.timur.web4_backend.dto.CredentialsDTO;
+import ru.timur.web4_backend.dto.TokenDTO;
 import ru.timur.web4_backend.entity.UserEntity;
 import ru.timur.web4_backend.exception.*;
 import ru.timur.web4_backend.util.PasswordHasher;
@@ -20,7 +23,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private PasswordHasher passwordHasher;
 
     @Override
-    public String registerUser(String username, String password) throws UsernameExistsException, InvalidAuthorizationDataException {
+    public CredentialsDTO registerUser(String username, String password) throws UsernameExistsException, InvalidAuthorizationDataException {
         validateAuthorizationData(username, password);
         if (userDAO.getUserByUsername(username).isPresent())
             throw new UsernameExistsException("User with username: " + username + " already exists");
@@ -41,11 +44,11 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     }
 
     @Override
-    public String authenticateUser(String username, String password) throws InvalidAuthorizationDataException, UserNotFoundException, AuthenticationException {
+    public CredentialsDTO authenticateUser(String username, String password) throws InvalidAuthorizationDataException, UserNotFoundException, AuthenticationException {
         validateAuthorizationData(username, password);
         UserEntity user = userDAO
                 .getUserByUsername(username)
-                .orElseThrow(() -> new UserNotFoundException("User with username " + username + "does not exists"));
+                .orElseThrow(() -> new UserNotFoundException("User with username " + username + " does not exists"));
 
         password = passwordHasher
                 .get_SHA_512_SecurePassword(password + user.getSalt());
@@ -61,13 +64,8 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     }
 
     @Override
-    public boolean isValidToken(String token) {
-        try {
-            userSessionService.validateToken(token);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+    public TokenDTO getRefreshedToken(TokenDTO token) throws SessionTimeoutException, SessionNotFoundException {
+        return userSessionService.refreshToken(token.getToken());
     }
 
     private void validateAuthorizationData(String username, String password) throws InvalidAuthorizationDataException {
