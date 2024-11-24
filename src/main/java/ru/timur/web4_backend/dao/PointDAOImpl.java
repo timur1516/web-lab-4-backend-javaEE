@@ -33,7 +33,10 @@ public class PointDAOImpl implements PointDAO {
         Transaction transaction = session.beginTransaction();
         List<PointEntity> points = new ArrayList<>();
         try (session) {
-            points = session.createQuery("from PointEntity ", PointEntity.class).getResultList();
+            points = session
+                    .createQuery("from PointEntity where user.id =: id", PointEntity.class)
+                    .setParameter("id", userId)
+                    .getResultList();
             transaction.commit();
         } catch (Exception e) {
             transaction.rollback();
