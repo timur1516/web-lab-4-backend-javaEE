@@ -1,32 +1,67 @@
 package ru.timur.web4_backend.util;
 
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.exceptions.JWTDecodeException;
-import jakarta.ejb.Singleton;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import jakarta.ejb.Stateless;
+import lombok.extern.slf4j.Slf4j;
 
+import javax.crypto.SecretKey;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.security.Key;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Properties;
 
+@Slf4j
 @Stateless
 public class JwtUtilImpl implements JWTUtil {
+    private Key key;
+    @PostConstruct
+    private void init() {
+        Properties properties = new Properties();
+        String propertiesPath = System.getenv("JWT_CONFIG_PATH");
+        if (propertiesPath == null) {
+            log.error("Unable to find JWT property path. Create JWT_CONFIG_PATH system variable");
+            return;
+        }
+        try {
+            properties.load(new FileInputStream(propertiesPath));
+        } catch (IOException e) {
+            log.error("Error loading properties file for JWT", e);
+            return;
+        }
+        String secretKey = properties.getProperty("secretKey");
+        if(secretKey == null) {
+            log.error("secretKey property was not found in JWT property file");
+            return;
+        }
+        key = Keys.hmacShaKeyFor(secretKey.getBytes());
+        log.info("JWT secret key was loaded successfully");
+    }
+
     @Override
     public String generateToken(Long userId, Instant expiresAt) {
-        //TODO: Add secure property file with secret key
-        String secretKey = "oeRaYY7Wo24sDqKSX3IM9ASGmdGPmkTd9jo1QTy4b7P9Ze5_9hKolVX8xNrQDcNRfVEdTZNOuOyqEGhXEbdJI-ZQ19k_o9MI0y3eZN2lp9jow55FfXMiINEdt1XR85VipRLSOkT6kSpzs2x-jbLDiz9iFVzkd81YKxMgPA7VfZeQUm4n-mOmnWMaVX30zGFU4L3oPBctYKkl4dYfqYWqRNfrgPJVi5DGFjywgxx0ASEiJHtV72paI3fDR2XwlSkyhhmY-ICjCRmsJN4fX1pdoL8a18-aQrvyu4j0Os6dVPYIoPvvY0SAZtWYKHfM15g7A3HD4cVREf9cUsprCRK93w";
-        return JWT.create()
-                .withClaim("userId", userId)
-                .withExpiresAt(expiresAt)
-                .sign(Algorithm.HMAC256(secretKey));
+        return Jwts
+                .builder()
+                .claim("userId", userId)
+                .expiration(Date.from(expiresAt))
+                .signWith(key)
+                .compact();
     }
 
     @Override
     public Long getUserId(String token) {
         try {
-            return JWT.decode(token).getClaim("userId").asLong();
-        } catch (JWTDecodeException e) {
+            return Jwts
+                    .parser()
+                    .verifyWith((SecretKey) key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get("userId", Long.class);
+        } catch (Exception e) {
             return null;
         }
     }
@@ -34,9 +69,16 @@ public class JwtUtilImpl implements JWTUtil {
     @Override
     public boolean isExpired(String token) {
         try {
-            Date expirationTime = JWT.decode(token).getExpiresAt();
-            return expirationTime != null && expirationTime.before(new Date());
-        } catch (JWTDecodeException e) {
+            Date expirationTime = Jwts
+                    .parser()
+                    .verifyWith((SecretKey) key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .getExpiration();
+            if(expirationTime == null) return true;
+            return expirationTime.before(new Date());
+        } catch (Exception e) {
             return true;
         }
     }

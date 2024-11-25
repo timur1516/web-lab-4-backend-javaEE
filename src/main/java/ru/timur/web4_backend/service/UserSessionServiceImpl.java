@@ -21,10 +21,13 @@ public class UserSessionServiceImpl implements UserSessionService {
     @EJB
     private JWTUtil jwtUtil;
 
+    private final long ACCESS_TOKEN_VALIDITY_MINUTES = 30;
+    private final long REFRESH_TOKEN_VALIDITY_HOURS = 5;
+
     @Override
     public CredentialsDTO startSession(UserEntity user) {
-        String accessToken = jwtUtil.generateToken(user.getId(), Instant.now().plus(30, ChronoUnit.SECONDS));
-        String refreshToken = jwtUtil.generateToken(user.getId(), Instant.now().plus(1, ChronoUnit.MINUTES));
+        String accessToken = jwtUtil.generateToken(user.getId(), Instant.now().plus(ACCESS_TOKEN_VALIDITY_MINUTES, ChronoUnit.MINUTES));
+        String refreshToken = jwtUtil.generateToken(user.getId(), Instant.now().plus(REFRESH_TOKEN_VALIDITY_HOURS, ChronoUnit.HOURS));
         UserSessionEntity userSessionEntity = UserSessionEntity
                 .builder()
                 .accessToken(accessToken)
@@ -59,7 +62,7 @@ public class UserSessionServiceImpl implements UserSessionService {
                 .getSessionByRefreshToken(token)
                 .orElseThrow(() -> new SessionNotFoundException("Session with token " + token + " does not exists"));
 
-        String newAccessToken = jwtUtil.generateToken(jwtUtil.getUserId(token), Instant.now().plus(30, ChronoUnit.SECONDS));
+        String newAccessToken = jwtUtil.generateToken(jwtUtil.getUserId(token), Instant.now().plus(ACCESS_TOKEN_VALIDITY_MINUTES, ChronoUnit.MINUTES));
         userSession.setAccessToken(newAccessToken);
         userSessionDAO.updateSession(userSession);
         return new TokenDTO(newAccessToken);

@@ -2,10 +2,10 @@ package ru.timur.web4_backend.util;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import jakarta.ejb.Singleton;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Properties;
 
+@Slf4j
 @NoArgsConstructor
 @ApplicationScoped
 public class HibernateUtil implements Serializable {
@@ -25,17 +26,18 @@ public class HibernateUtil implements Serializable {
         Properties properties = new Properties();
         String propertiesPath = System.getenv("DB_CONFIG_PATH");
         if (propertiesPath == null) {
-            System.err.println("Unable to find properties path. Create DB_CONFIG_PATH system variable");
+            log.error("Unable to find properties path. Create DB_CONFIG_PATH system variable");
             return;
         }
         try {
             properties.load(new FileInputStream(propertiesPath));
         } catch (IOException e) {
-            System.err.println("Error loading properties file for database");
-            System.err.println(e.getMessage());
+            log.error("Error loading properties file for database", e);
+            return;
         }
         configuration.addProperties(properties);
         sessionFactory = configuration.buildSessionFactory();
+        log.info("SessionFactory created");
     }
 
     @Produces
