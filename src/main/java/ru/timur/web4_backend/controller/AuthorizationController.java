@@ -78,4 +78,12 @@ public class AuthorizationController {
             return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
         }
     }
+
+    @POST
+    @Path("change-user")
+    public Response changeUser() {
+        UserPrincipals userPrincipal = (UserPrincipals) securityContext.getUserPrincipal();
+        CredentialsDTO token = authorizationService.findGoodOrNew(userPrincipal.getUserId());
+        return Response.ok(token).build();
+    }
 }

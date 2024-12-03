@@ -72,4 +72,22 @@ public class UserDAOImpl implements UserDAO {
         }
         return Optional.ofNullable(user);
     }
+
+    @Override
+    public Optional<UserEntity> getRandomUserWithDifferentId(Long userId) {
+        UserEntity user = null;
+        Session session = sessionFactory.openSession();
+        Transaction transaction = session.beginTransaction();
+        try (session) {
+            user = session.createQuery(
+                            "FROM UserEntity WHERE id != :id ORDER BY RANDOM()", UserEntity.class)
+                    .setParameter("id", userId)
+                    .setMaxResults(1)
+                    .uniqueResult();
+            transaction.commit();
+        } catch (Exception e) {
+            transaction.rollback();
+        }
+        return Optional.ofNullable(user);
+    }
 }

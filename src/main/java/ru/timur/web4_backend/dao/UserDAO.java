@@ -9,4 +9,5 @@ public interface UserDAO {
     void updateUser(UserEntity userEntity);
     Optional<UserEntity> getUserById(Long userId);
     Optional<UserEntity> getUserByUsername(String username);
+    Optional<UserEntity> getRandomUserWithDifferentId(Long userId);
 }

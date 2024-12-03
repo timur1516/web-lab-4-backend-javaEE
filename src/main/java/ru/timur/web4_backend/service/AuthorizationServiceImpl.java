@@ -59,7 +59,24 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     }
 
     @Override
-    public void logout(String token){
+    public CredentialsDTO findGoodOrNew(Long userId) {
+        UserEntity user = userDAO
+                .getRandomUserWithDifferentId(userId)
+                .orElse(null);
+        if (user == null) {
+            while (true) {
+                String username = randomStringGenerator.generate(10);
+                String password = randomStringGenerator.generate(20);
+                try {
+                    return registerUser(username, password);
+                } catch (Exception ignored) {}
+            }
+        }
+        return userSessionService.startSession(user);
+    }
+
+    @Override
+    public void logout(String token) {
         userSessionService.endSession(token);
     }
 
@@ -68,7 +85,8 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         return userSessionService.refreshToken(token.getToken());
     }
 
-    private void validateAuthorizationData(String username, String password) throws InvalidAuthorizationDataException {
+    private void validateAuthorizationData(String username, String password) throws
+            InvalidAuthorizationDataException {
         if (username == null)
             throw new InvalidAuthorizationDataException("Username is null");
         if (password == null)
