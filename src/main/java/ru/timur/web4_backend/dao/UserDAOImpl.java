@@ -6,6 +6,7 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import ru.timur.web4_backend.entity.UserEntity;
+import ru.timur.web4_backend.entity.UserSessionEntity;
 
 import java.util.Optional;
 
@@ -20,6 +21,18 @@ public class UserDAOImpl implements UserDAO {
         Transaction transaction = session.beginTransaction();
         try (session) {
             session.persist(user);
+            transaction.commit();
+        } catch (Exception e) {
+            transaction.rollback();
+        }
+    }
+
+    @Override
+    public void updateUser(UserEntity userEntity) {
+        Session session = sessionFactory.openSession();
+        Transaction transaction = session.beginTransaction();
+        try (session) {
+            session.merge(userEntity);
             transaction.commit();
         } catch (Exception e) {
             transaction.rollback();

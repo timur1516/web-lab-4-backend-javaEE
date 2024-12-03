@@ -28,6 +28,13 @@ public class UserEntity {
     @Column(name = "salt", nullable = false)
     private String salt;
 
+    @Lob
+    @Column(name = "avatar")
+    private byte[] avatar;
+
+    @Column(name="avatar_type")
+    private String avatarType;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private Set<PointEntity> points;
 }
